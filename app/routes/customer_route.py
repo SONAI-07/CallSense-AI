@@ -6,6 +6,9 @@ from app.core.database import get_db
 from app.models.tenant import Tenant
 from app.repositories.customer_repo import CustomerRepository
 from app.schemas.customer_schema import CustomerResponse
+from app.models.customer import Customer
+from app.schemas.customer_schema import CustomerCreateRequest
+from fastapi import status
 
 
 router = APIRouter(
@@ -30,3 +33,20 @@ async def list_customers(
     )
 
     return customers
+
+@router.post("", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED)
+async def create_customer(
+    payload: CustomerCreateRequest,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    customer = Customer(
+        tenant_id=tenant.id,
+        name=payload.name,
+        phone_number=payload.phone_number,
+        email=payload.email,
+    )
+    db.add(customer)
+    await db.commit()
+    await db.refresh(customer)
+    return customer
