@@ -10,7 +10,7 @@ from app.models.call_insights import CallInsight
 from app.models.customer import Customer
 from app.schemas.dashboard_schema import DashboardSummaryResponse
 from app.agent.action import BusinessAction
-
+from app.agent.classification import CustomerClassification
 
 router = APIRouter(
     prefix="/dashboard",
@@ -74,21 +74,13 @@ async def get_dashboard_summary(
     )
 
     strong_interest_calls = await _count_classification(
-        session,
-        tenant_id,
-        "STRONG",
+        session, tenant_id, CustomerClassification.STRONG.value,
     )
-
     neutral_calls = await _count_classification(
-        session,
-        tenant_id,
-        "NEUTRAL",
+        session, tenant_id, CustomerClassification.NEUTRAL.value,
     )
-
     not_interested_calls = await _count_classification(
-        session,
-        tenant_id,
-        "NOT_INTERESTED",
+        session, tenant_id, CustomerClassification.NOT_INTERESTED.value,
     )
 
     whatsapp_actions_executed = await _count_action(
