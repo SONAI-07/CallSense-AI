@@ -94,38 +94,29 @@ async def media_stream(websocket: WebSocket):
                         agent_repository = AgentRepository()
 
                         async with AsyncSessionLocal() as session:
-                            call = await call_repository.get_by_twilio_sid(
-                                session=session,
-                                twilio_call_sid=call_sid,
-                            )
+                            async with session.begin():
+                                call = await call_repository.get_by_twilio_sid(
+                                    session=session,
+                                    twilio_call_sid=call_sid,
+                                )
+                                if call is None:
+                                    raise ValueError("Unknown Twilio call SID")
+                                if call.agent_id is None:
+                                    raise ValueError("Call is missing agent ownership")
+                                if call.status not in ("initiating", "initiated"):
+                                    raise ValueError("Call is not in a dialable state")
 
-                            if call is None:
-                                raise ValueError(
-                                "Unknown Twilio call SID"
-                            )
-                            if call.agent_id is None:
-                                 raise ValueError("Call is missing agent ownership")
+                                agent = await agent_repository.get_by_id_for_tenant(
+                                    session=session,
+                                    agent_id=call.agent_id,
+                                    tenant_id=call.tenant_id,
+                                )
+                                if agent is None:
+                                    raise ValueError("Call agent configuration could not be resolved")
 
-                            agent = await agent_repository.get_by_id_for_tenant(
-                                session=session,
-                                agent_id=call.agent_id,
-                                tenant_id=call.tenant_id,
-                            )
+                                call.started_at = datetime.now(timezone.utc)
 
-                            if agent is None:
-                                 raise ValueError("Call agent configuration could not be resolved")
-
-
-
-                        call.started_at = datetime.now(timezone.utc)
-                        await session.commit()
-
-                        # The provider call SID has now been resolved
-                        # to an authoritative durable Call record.
-                        # The provider call SID has now been resolved
-                        # to an authoritative durable Call record.
                         call_validated = True
-
                         # Mark the actual beginning of the voice runtime.
                         # The Call record was already created by the control plane,
                         # so this timestamp represents when the provider actually
