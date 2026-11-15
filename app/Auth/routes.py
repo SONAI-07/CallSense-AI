@@ -140,13 +140,3 @@ async def me(
         tenant_name=tenant.name,
     )
 
-# Temporary Function
-
-@router.get("/test-tenant")
-async def test_tenant(
-        tenant: Tenant = Depends(get_current_tenant),
-):
-    return {
-        "tenant_id": tenant.id,
-        "tenant_name": tenant.name,
-    }
