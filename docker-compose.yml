@@ -1,6 +1,6 @@
 services:
   api:
-    image: archan001/customercare-agent:0.1.0
+    build: .
     container_name: customercare-api
     env_file:
       - .env
