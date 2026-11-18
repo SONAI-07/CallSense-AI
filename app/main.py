@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
 from sqlalchemy import text
+from app.knowledge.routes import router as knowledge_router
 
 from app.core.config import get_settings, configure_langsmith
 from app.core.database import engine
@@ -55,6 +56,7 @@ app.include_router(call_insight_router)
 app.include_router(dashboard_router)
 app.include_router(agent_router)
 app.include_router(campaign_router)
+app.include_router(knowledge_router)
 
 app.mount("/metrics", make_asgi_app())
 
@@ -91,3 +93,5 @@ async def readiness_check():
     if not ready:
         return JSONResponse(status_code=503, content=response)
     return response
+
+
