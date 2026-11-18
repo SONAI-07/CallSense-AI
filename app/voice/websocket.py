@@ -28,6 +28,7 @@ from app.voice.engine import RealtimeVoiceEngine
 from app.voice.murf_tts import MurfTTS
 from app.voice.sarvam_llm import SarvamLLM
 from app.voice.sarvam_stt import SarvamSTT
+from app.knowledge.gate import context_for
 
 
 router = APIRouter()
@@ -45,6 +46,8 @@ async def media_stream(websocket: WebSocket):
 
     call_sid: str | None = None
     call_validated = False
+    call_tenant_id: int | None = None
+    call_status: str = "unknown"
 
     memory = CallMemory()
     post_call_service = PostCallService(memory=memory)
@@ -53,6 +56,7 @@ async def media_stream(websocket: WebSocket):
 
     stt_task: asyncio.Task | None = None
     tts_audio_task: asyncio.Task | None = None
+
 
     try:
         # =========================================================
@@ -64,6 +68,8 @@ async def media_stream(websocket: WebSocket):
             nonlocal engine
             nonlocal stt_task
             nonlocal tts_audio_task
+            nonlocal call_tenant_id
+            nonlocal call_status
 
             try:
                 while True:
@@ -115,15 +121,10 @@ async def media_stream(websocket: WebSocket):
                                     raise ValueError("Call agent configuration could not be resolved")
 
                                 call.started_at = datetime.now(timezone.utc)
+                                call_tenant_id = call.tenant_id
+                                call_status = call.status
 
-                        call_validated = True
-                        # Mark the actual beginning of the voice runtime.
-                        # The Call record was already created by the control plane,
-                        # so this timestamp represents when the provider actually
-                        # entered the voice execution lifecycle.
-                        async with AsyncSessionLocal() as session:
-                            async with session.begin():
-                             call.started_at = datetime.now(timezone.utc)
+                            call_validated = True
 
 
 
@@ -216,15 +217,24 @@ async def media_stream(websocket: WebSocket):
                     if not call_sid:
                         continue
 
-                    await memory.append_message(
-                        call_sid=call_sid,
-                        role="user",
-                        content=transcript,
-                    )
+                    await memory.append_message(call_sid=call_sid, role="user", content=transcript)
 
-                    await engine.submit_transcript(
-                        transcript
-                    )
+                    # Knowledge gate must never break the live call.
+                    ctx = ""
+                    if call_tenant_id is not None:
+                        try:
+                            ctx, _dest, _conf, _lat = await context_for(
+                                call_tenant_id,
+                                transcript,
+                                call_sid=call_sid,
+                                call_state=f"status={call_status}",
+                            )
+                        except Exception:
+                            ctx = ""
+                    if ctx:
+                        await memory.append_message(call_sid=call_sid, role="system", content=ctx)
+
+                    await engine.submit_transcript(transcript)
 
         # =========================================================
         # TTS OUTPUT
