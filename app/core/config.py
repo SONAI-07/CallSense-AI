@@ -46,6 +46,20 @@ class Settings(BaseSettings):
     langsmith_project: str = "customer-care-agent"
     langsmith_endpoint: str | None = None
 
+    # --- Knowledge / RAG gate ---
+    knowledge_enabled: bool = True
+    knowledge_shadow_mode: bool = True
+    knowledge_top_k: int = 4
+    knowledge_sim_threshold: float = 0.50
+    knowledge_sem_high: float = 0.62
+    knowledge_sem_margin: float = 0.06
+    knowledge_confident_p: float = 0.60
+    knowledge_ambiguous_margin: float = 0.15
+    knowledge_jev_timeout_ms: int = 450
+    embedding_model: str = "Qdrant/all-MiniLM-L6-v2-q"
+    typesafe_api_url: str = ""
+    typesafe_api_key: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
